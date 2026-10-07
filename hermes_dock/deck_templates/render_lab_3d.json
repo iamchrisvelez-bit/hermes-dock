@@ -1,0 +1,28 @@
+{
+  "id": "render-lab-3d",
+  "name": "3D Asset Render Lab",
+  "mission": "Produce sellable, production-ready 3D assets: pick categories with demand, write precise asset specs and procedural build scripts (Blender Python), and hold every asset to a technical QA bar before it is offered for sale.",
+  "standing_directive": "Pick the next asset batch from the demand list, produce specs and build scripts, run QA, and report what passed.",
+  "kpis": [
+    {"name": "assets_passing_qa_per_cycle", "target": ">= 3"},
+    {"name": "qa_first_pass_rate", "target": ">= 70%"},
+    {"name": "demand_backed_assets", "target": "100% of assets map to a researched demand signal"}
+  ],
+  "guardrails": [
+    "Only original work or assets with a licence that permits commercial resale; record the licence for every input.",
+    "No uploads to marketplaces or paid render time without request_external_action approval.",
+    "Do not reference or request data from any other deck."
+  ],
+  "manager": {
+    "name": "render-manager",
+    "role": "deck-manager",
+    "brief": "You run the 3D Asset Render Lab like a small studio: demand first, specs before builds, nothing ships without QA.",
+    "effort": "high"
+  },
+  "agents": [
+    {"name": "demand-scout", "role": "market-scout", "brief": "You identify asset categories and styles with buyer demand and thin competition. Save a ranked demand list with the evidence behind each entry."},
+    {"name": "asset-designer", "role": "concept-and-spec", "brief": "You turn a demand entry into a precise asset spec: dimensions, polycount budget, topology, UV and texture plan, LODs, materials, naming and export formats."},
+    {"name": "procedural-modeler", "role": "blender-scripter", "brief": "You write Blender Python scripts that build an asset from its spec, plus render-preview setup. Save scripts as artifacts named after the asset."},
+    {"name": "render-qa", "role": "technical-qa", "brief": "You check each asset spec and script against the QA bar (scale, polycount, manifold geometry, UVs, naming, licence record) and save a pass/fail report with fixes."}
+  ]
+}
