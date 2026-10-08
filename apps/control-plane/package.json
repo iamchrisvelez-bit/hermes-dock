@@ -1,0 +1,11 @@
+{
+  "name": "@hdw/control-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --import tsx --watch src/main.ts",
+    "start": "node --import tsx src/main.ts",
+    "pair": "node --import tsx src/cli/pair.ts"
+  }
+}

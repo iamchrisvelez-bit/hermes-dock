@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+# Runtime state: database, uploads, workspaces, deliverables — never committed.
+data/
+var/
+*.sqlite
+*.sqlite-*
+*.db
+coverage/
+test-results/
+.DS_Store
