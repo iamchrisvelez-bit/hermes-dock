@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { DEFAULT_POLICY, OwnerPolicy } from '@hdw/workspace-policy';
 import type { MockScenario } from '@hdw/hermes-adapter';
 
@@ -31,7 +32,10 @@ function bool(v: string | undefined, d: boolean) {
   return ['1', 'true', 'yes', 'on'].includes(v.toLowerCase());
 }
 
-export function loadConfig(env: NodeJS.ProcessEnv = process.env, cwd = process.cwd()): AppConfig {
+/** Repo root, so relative paths behave the same whether started from the root or via `npm -w`. */
+export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+
+export function loadConfig(env: NodeJS.ProcessEnv = process.env, cwd = REPO_ROOT): AppConfig {
   const dataDir = path.resolve(cwd, env.HDW_DATA_DIR ?? 'data');
   const port = Number(env.HDW_PORT ?? 8787);
   const host = env.HDW_HOST ?? '127.0.0.1';

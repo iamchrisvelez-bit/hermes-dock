@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --import tsx --watch src/main.ts",
-    "start": "node --import tsx src/main.ts",
-    "pair": "node --import tsx src/cli/pair.ts"
+    "dev": "node --env-file-if-exists=../../.env --import tsx --watch src/main.ts",
+    "start": "node --env-file-if-exists=../../.env --import tsx src/main.ts",
+    "pair": "node --env-file-if-exists=../../.env --import tsx src/cli/pair.ts"
   }
 }
