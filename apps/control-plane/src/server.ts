@@ -343,9 +343,14 @@ export async function buildServer(ctx: AppContext) {
 
   // ---------- Client (built PWA) ----------
   if (config.clientDist && existsSync(path.join(config.clientDist, 'index.html'))) {
-    await app.register(fastifyStatic, { root: config.clientDist, prefix: '/', index: ['index.html'], wildcard: false });
+    // wildcard: files are resolved per request, so a rebuilt client is served without a restart.
+    await app.register(fastifyStatic, { root: config.clientDist, prefix: '/', index: ['index.html'], wildcard: true });
     app.setNotFoundHandler((req, reply) => {
-      if (req.method === 'GET' && !req.url.startsWith('/api/')) return reply.type('text/html').sendFile('index.html');
+      const pathname = req.url.split('?')[0] ?? '/';
+      // SPA fallback only for navigations; a missing asset must 404, never return HTML as JS.
+      if (req.method === 'GET' && !pathname.startsWith('/api/') && !/\.[a-z0-9]+$/i.test(pathname)) {
+        return reply.type('text/html').sendFile('index.html');
+      }
       reply.status(404).send({ error: { code: 'not_found', message: 'Not found' } });
     });
   }
