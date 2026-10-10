@@ -15,7 +15,7 @@ def station(tmp_path):
 
 
 def test_init_installs_three_siloed_decks(station):
-    assert station.store.deck_ids() == ["emittime-lab", "online-sales-lab", "render-lab-3d"]
+    assert station.store.deck_ids() == ["emittime-lab", "online-sales-lab", "render-lab-3d", "rsps-forge"]
     for deck in station.decks():
         assert deck.manager_spec.tier == 1
         assert all(w.tier == 2 for w in deck.worker_specs.values())

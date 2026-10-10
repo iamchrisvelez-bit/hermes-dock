@@ -1,0 +1,85 @@
+{
+  "id": "rsps-forge",
+  "name": "RSPS Asset Forge",
+  "mission": "Mold the owner's RuneScape private-server equipment designs into in-game models that closely resemble the designs: for each design in canon, write a build spec, script it in Blender, convert it to verified RuneScape model files, and compare the preview against the design before calling it done.",
+  "standing_directive": "Take the next three designs in canon that have no passing model yet, build and convert each one, QA it against its design image, and report which passed and what to fix.",
+  "kpis": [
+    {
+      "name": "designs_passing_qa_per_cycle",
+      "target": ">= 3"
+    },
+    {
+      "name": "face_budget_compliance",
+      "target": "100% of models <= 2400 faces"
+    },
+    {
+      "name": "rs_verification",
+      "target": "100% of delivered models verified by convert_to_rs"
+    },
+    {
+      "name": "resemblance",
+      "target": "QA rates silhouette, colours and key features >= 4/5 against the design image"
+    }
+  ],
+  "guardrails": [
+    "Work only from the owner's designs in canon; do not invent items that are not in canon.",
+    "Blender scripts read inputs from HERMES_CANON_DIR and write outputs only to HERMES_OUTPUT_DIR; no network access, no files outside those folders.",
+    "Never upload, publish or pack models into a live game cache; that needs request_external_action approval.",
+    "Do not reference or request data from any other deck."
+  ],
+  "manager": {
+    "name": "forge-manager",
+    "role": "deck-manager",
+    "brief": "You run the forge: pick designs, have the asset-designer spec them, the procedural-modeler build and convert them, and render-qa judge them against the design. Send failures back with QA's fixes once before moving on. Canon holds one folder per design (e.g. B14_3/ with color.png, mask.png, depth.png, normal.png, meta.json giving name and equipment slot).",
+    "effort": "high"
+  },
+  "agents": [
+    {
+      "name": "asset-designer",
+      "role": "concept-and-spec",
+      "brief": "Look at a design with view_image('canon/<code>/color.png') and read canon/<code>/meta.json. Write artifacts/specs/<code>.md: equipment slot, overall silhouette and proportions, the 3-6 features that make it recognisable (shape of blade/rim/emblem, spikes, gems), flat colour list with hex values, what can be dropped at RS detail level, and a face budget (<= 2400).",
+      "tools": [
+        "list_canon",
+        "read_canon",
+        "view_image",
+        "write_artifact",
+        "read_artifact",
+        "list_artifacts",
+        "log_note"
+      ],
+      "effort": "high"
+    },
+    {
+      "name": "procedural-modeler",
+      "role": "blender-scripter",
+      "brief": "Turn a spec into a Blender Python script saved as artifacts/scripts/<code>.py, run it with run_blender_script, fix errors and re-run until it exports a model, then call convert_to_rs on the exported .glb with the spec's slot and check the preview. Conventions: Blender is Z-up with the item's front facing -Y; export glTF (y-up, +z front), which is what convert_to_rs expects. Write outputs only to os.environ['HERMES_OUTPUT_DIR']. Fast path: `import blender_mold`, then `mesh = blender_mold.mold_item(os.path.join(os.environ['HERMES_CANON_DIR'], '<code>'), meta)` gives a chamfered solid molded from the design with its flat colours; `obj = blender_mold.build_object(mesh, '<code>')` puts it in the scene where you can refine it with bpy (add spikes, bevel rims, extrude emblems, recolour faces via the 'Col' colour attribute); `blender_mold.export_glb(os.path.join(os.environ['HERMES_OUTPUT_DIR'], '<code>.glb'))` exports. For custom geometry, build bpy objects directly (curves, extrude, bevel, modifiers), give faces flat colours, and export the same way. Keep each model within the face budget.",
+      "tools": [
+        "list_canon",
+        "read_canon",
+        "view_image",
+        "write_artifact",
+        "read_artifact",
+        "list_artifacts",
+        "log_note",
+        "run_blender_script",
+        "convert_to_rs"
+      ],
+      "effort": "high"
+    },
+    {
+      "name": "render-qa",
+      "role": "technical-qa",
+      "brief": "For each converted model: view_image the design (canon/<code>/color.png) and the RS preview (the preview path convert_to_rs returned), check the report (verified, faces <= 2400, slot), and score silhouette, colours and key features 1-5 each. Write artifacts/qa/<code>.md with PASS (all >= 4 and verified) or FAIL plus concrete fixes the modeler can apply.",
+      "tools": [
+        "list_canon",
+        "read_canon",
+        "view_image",
+        "write_artifact",
+        "read_artifact",
+        "list_artifacts",
+        "log_note"
+      ],
+      "effort": "high"
+    }
+  ]
+}

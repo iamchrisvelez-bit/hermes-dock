@@ -42,6 +42,10 @@ class AgentSpec:
         return cls(**known)
 
 
+class Content(list):
+    """A tool result made of content blocks (text and images) instead of a string."""
+
+
 @dataclass
 class Tool:
     name: str
@@ -73,7 +77,7 @@ class Toolbox:
     def definitions(self) -> list[dict[str, Any]]:
         return [t.definition() for t in self._tools.values()]
 
-    def call(self, name: str, args: dict[str, Any]) -> tuple[str, bool]:
+    def call(self, name: str, args: dict[str, Any]) -> tuple[str | list[dict[str, Any]], bool]:
         tool = self._tools.get(name)
         if tool is None:
             return f"Unknown or unpermitted tool: {name}", True
@@ -81,6 +85,8 @@ class Toolbox:
             result = tool.fn(**args)
         except Exception as exc:  # surfaced to the model as a tool error
             return f"{type(exc).__name__}: {exc}", True
+        if isinstance(result, Content):
+            return list(result), False
         return result if isinstance(result, str) else json.dumps(result, default=str), False
 
 

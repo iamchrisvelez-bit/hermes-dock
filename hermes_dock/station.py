@@ -17,11 +17,12 @@ from .auditors import default_auditors
 from .deck import MANAGER_TOOLS, WORKER_TOOLS, DeckReport, ObservationDeck, load_spec
 from .llm import Backend, make_backend
 from .store import StationStore
+from .workshop import WORKSHOP_TOOLS, Workshop
 
 # Actions that wait for a human while the station runs supervised.
 GATED = {"erase_deck", "external_action"}
 REQUIRED_SPEC_KEYS = {"id", "name", "mission", "manager"}
-TEMPLATES = ("emittime_lab", "render_lab_3d", "online_sales_lab")
+TEMPLATES = ("emittime_lab", "render_lab_3d", "online_sales_lab", "rsps_forge")
 
 HERMES_CORE = """You are Hermes, administrator of the dock. You run every observation deck through its manager.
 
@@ -48,9 +49,11 @@ def _validate(spec: dict[str, Any]) -> None:
 
 
 class Station:
-    def __init__(self, root: str = ".hermes", backend: Backend | None = None, autonomy: str | None = None):
+    def __init__(self, root: str = ".hermes", backend: Backend | None = None, autonomy: str | None = None,
+                 workshop: Workshop | None = None):
         self.store = StationStore(root)
         self.backend = backend or make_backend()
+        self.workshop = workshop or Workshop()
         settings = self.store.load_json("settings.json", {"autonomy": "supervised"})
         if autonomy:
             settings["autonomy"] = autonomy
@@ -63,7 +66,7 @@ class Station:
         silo = self.store.silo(deck_id)
         if not silo.exists("spec.json"):
             raise KeyError(f"no deck {deck_id!r}")
-        return ObservationDeck(load_spec(silo), silo, self.backend, self._uplink(deck_id))
+        return ObservationDeck(load_spec(silo), silo, self.backend, self._uplink(deck_id), self.workshop)
 
     def decks(self) -> list[ObservationDeck]:
         return [self.deck(d) for d in self.store.deck_ids()]
@@ -122,13 +125,17 @@ class Station:
         self.store.log("deck_erased", deck=deck_id, reason=reason, archive=str(dest))
         return f"Deck {deck_id} erased (archived at {dest})."
 
-    def add_canon(self, deck_id: str, name: str, content: str) -> str:
-        """Owner-supplied reference material. Agents can read canon but never write it."""
+    def add_canon(self, deck_id: str, name: str, content: str | bytes) -> str:
+        """Owner-supplied reference material (text or binary, e.g. design images).
+        Agents can read canon but never write it."""
         if deck_id not in self.store.deck_ids():
             raise KeyError(f"no deck {deck_id!r}")
         silo = self.store.silo(deck_id)
-        silo.write(f"canon/{name}", content)
-        silo.log("canon_added", name=name, chars=len(content))
+        if isinstance(content, bytes):
+            silo.write_bytes(f"canon/{name}", content)
+        else:
+            silo.write(f"canon/{name}", content)
+        silo.log("canon_added", name=name, size=len(content))
         self.store.log("canon_added", deck=deck_id, name=name)
         return f"Added canon/{name} to {deck_id}."
 
@@ -309,7 +316,8 @@ class Station:
 
         agent_schema = {"type": "object", "properties": {
             "name": s, "role": s, "brief": s, "effort": {"type": "string", "enum": ["low", "medium", "high", "xhigh"]},
-            "tools": {"type": "array", "items": {"type": "string", "enum": sorted(set(WORKER_TOOLS + MANAGER_TOOLS))}}},
+            "tools": {"type": "array", "items": {"type": "string",
+                                                 "enum": sorted(set(WORKER_TOOLS + MANAGER_TOOLS + WORKSHOP_TOOLS))}}},
             "required": ["name", "role", "brief"]}
         return Toolbox([
             Tool("list_decks", "List every deck with crew and latest audit scores.", {"properties": {}}, list_decks),
