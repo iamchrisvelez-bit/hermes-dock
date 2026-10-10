@@ -64,8 +64,17 @@ class DeckSilo:
         path.write_text(content)
         return path
 
+    def write_bytes(self, rel: str, content: bytes) -> Path:
+        path = self._resolve(rel)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+        return path
+
     def read(self, rel: str) -> str:
         return self._resolve(rel).read_text()
+
+    def read_bytes(self, rel: str) -> bytes:
+        return self._resolve(rel).read_bytes()
 
     def exists(self, rel: str) -> bool:
         return self._resolve(rel).exists()

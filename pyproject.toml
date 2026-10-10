@@ -3,10 +3,11 @@ name = "hermes-dock"
 version = "0.1.0"
 description = "Central Hermes administrator dock governing siloed AI-agent observation decks"
 requires-python = ">=3.11"
-dependencies = ["anthropic>=1.11"]
+dependencies = ["anthropic>=1.11", "pillow>=10"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+blender = ["bpy"]  # install into its own venv and point HERMES_BLENDER_PYTHON at it
 
 [project.scripts]
 hermes-dock = "hermes_dock.cli:main"

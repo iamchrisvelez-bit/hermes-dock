@@ -50,6 +50,28 @@ Templates live in `hermes_dock/deck_templates/`:
 - **3D Asset Render Lab** (`render-lab-3d`): demand scout → asset spec → Blender Python build script → technical QA.
 - **Online Sales Lab** (`online-sales-lab`): product research → listings/offers → unit economics/pricing → customer-ops drafts. Spending, publishing and customer contact always need approval.
 
+## Render lab workshop: build and look, not just write
+
+The **3D Asset Render Lab** deck can now execute and inspect its work with real Blender:
+
+| Tool | Who has it | What it does |
+|---|---|---|
+| `run_blender_script` | procedural-modeler | Runs a Blender Python script from the deck's artifacts with Blender (`bpy`). Whatever the script exports to `HERMES_OUTPUT_DIR` lands in `artifacts/builds/<script>/`. |
+| `render_viewport` | procedural-modeler, render-qa | Renders a model (`.glb/.gltf/.obj/.ply/.stl/.fbx/.blend`) from front, three-quarter, side, back (and optionally top). The agent sees the images, plus stats for the QA bar: triangle count, dimensions, non-manifold edges and materials. Renders are saved to `artifacts/renders/<model>/`. |
+| `view_image` | procedural-modeler, render-qa | Shows any image in the deck (a canon reference, a render) to the agent as an image. |
+
+Each Blender process runs in its own folder inside the deck silo, with a minimal environment (no API keys) and a timeout (`HERMES_WORKSHOP_TIMEOUT`, default 300s). Viewport renders use Cycles on the CPU, so they work headless with no GPU; four 384px views take a few seconds. Scripts are ordinary Python processes, not a sandbox, so only grant these tools to decks you trust. Other decks don't get them; Hermes can grant them with `recruit_agent`/`supplant_agent`.
+
+Canon now accepts images and whole folders: `hermes-dock canon render-lab-3d <file-or-folder> [--glob '*.png']`.
+
+Setup:
+```bash
+python3 -m venv .venv-blender && .venv-blender/bin/pip install bpy   # Blender 5.x as a Python module
+export HERMES_BLENDER_PYTHON=$PWD/.venv-blender/bin/python
+hermes-dock cycle render-lab-3d                                      # needs ANTHROPIC_API_KEY
+```
+A station created before this change still has the old render-lab spec, without these tools. Either let Hermes `transform_deck` it, or erase and re-`init` the deck.
+
 ## Quick start
 
 ```bash
@@ -78,6 +100,8 @@ The station starts **supervised**: deck erasures and every external action (spen
 Agents run on Claude (`claude-opus-5-5` by default; override it with `HERMES_DOCK_MODEL`). They use adaptive thinking, per-agent effort, and server-side refusal fallback. The brain sits behind the small `Backend` protocol in `hermes_dock/llm.py`, so you can swap in another agent runtime, such as a self-hosted Nous Research Hermes model, without touching the station.
 
 ## Tests
+
+The real-Blender test runs when `HERMES_TEST_BLENDER_PYTHON` points at a Python with `bpy`; otherwise it is skipped.
 
 ```bash
 python -m pytest -q

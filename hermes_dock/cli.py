@@ -46,6 +46,7 @@ def main(argv: list[str] | None = None) -> int:
     k.add_argument("deck")
     k.add_argument("file")
     k.add_argument("--name", help="name inside the deck (default: the file's name)")
+    k.add_argument("--glob", default="*", help="when FILE is a folder: which files to add (default all)")
     sub.add_parser("approvals", help="list actions waiting on a human")
     d = sub.add_parser("approve", help="approve a pending ticket")
     d.add_argument("ticket")
@@ -88,7 +89,16 @@ def main(argv: list[str] | None = None) -> int:
         from pathlib import Path
 
         path = Path(args.file)
-        _print(st.add_canon(args.deck, args.name or path.name, path.read_text()))
+        files = [path] if path.is_file() else sorted(p for p in path.rglob(args.glob) if p.is_file())
+        for f in files:
+            name = args.name if path.is_file() and args.name else (f.name if path.is_file() else
+                                                                  str(f.relative_to(path)))
+            raw = f.read_bytes()
+            try:
+                content: str | bytes = raw.decode("utf-8")
+            except UnicodeDecodeError:
+                content = raw
+            _print(st.add_canon(args.deck, name, content))
     elif args.cmd == "approvals":
         _print(st.pending())
     elif args.cmd in ("approve", "reject"):
