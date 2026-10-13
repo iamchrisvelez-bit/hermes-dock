@@ -14,6 +14,7 @@ from typing import Any, Callable
 from .agents import TIER_MANAGER, TIER_WORKER, Agent, AgentSpec, Tool, Toolbox
 from .llm import Backend
 from .store import DeckSilo
+from .workshop import Workshop
 
 WORKER_TOOLS = ["list_canon", "read_canon", "write_artifact", "read_artifact", "list_artifacts", "log_note", "request_external_action"]
 MANAGER_TOOLS = ["list_canon", "read_canon", "assign_task", "write_artifact", "read_artifact", "list_artifacts", "log_note", "report_to_hermes"]
@@ -32,11 +33,13 @@ class DeckReport:
 
 
 class ObservationDeck:
-    def __init__(self, spec: dict[str, Any], silo: DeckSilo, backend: Backend, uplink: Uplink):
+    def __init__(self, spec: dict[str, Any], silo: DeckSilo, backend: Backend, uplink: Uplink,
+                 workshop: Workshop | None = None):
         self.spec = spec
         self.silo = silo
         self.backend = backend
         self._uplink = uplink
+        self.workshop = workshop or Workshop()
         self._report: DeckReport | None = None
 
     @property
@@ -94,7 +97,13 @@ class ObservationDeck:
             return [p.removeprefix("canon/") for p in silo.list("canon")]
 
         def read_canon(name: str) -> str:
-            return silo.read(f"canon/{name}")
+            raw = silo.read_bytes(f"canon/{name}")
+            try:
+                return raw.decode("utf-8")
+            except UnicodeDecodeError:
+                return (f"canon/{name} is a binary file ({len(raw)} bytes), not text. If it is an image, "
+                        f"look at it with view_image('canon/{name}'); Blender scripts can open it from "
+                        "os.environ['HERMES_CANON_DIR'].")
 
         def list_artifacts() -> list[str]:
             return silo.list("artifacts")
@@ -141,6 +150,7 @@ class ObservationDeck:
                 Tool("assign_task", "Hand a task to one of your crew and get their result.",
                      {"properties": {"agent": str_prop, "task": str_prop}, "required": ["agent", "task"]},
                      assign_task),
+                *self.workshop.tools(silo),
                 Tool("report_to_hermes", "File this cycle's report with the Hermes administrator.",
                      {"properties": {"summary": str_prop,
                                      "kpis": {"type": "object"},
