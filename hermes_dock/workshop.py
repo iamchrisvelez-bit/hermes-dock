@@ -37,7 +37,9 @@ from .agents import Content, Tool
 from .store import DeckSilo
 
 WORKSHOP_TOOLS = ["run_blender_script", "render_viewport", "view_image"]
-VIEWS = ["front", "three_quarter", "side", "back", "top"]
+VIEWS = ["front", "back", "left", "right", "top", "bottom", "three_quarter", "three_quarter_left",
+         "back_three_quarter", "back_three_quarter_left", "side"]
+ALL_VIEWS = VIEWS[:10]  # every direction: six axes + four upper diagonals
 MODEL_EXTS = (".glb", ".gltf", ".obj", ".ply", ".stl", ".fbx", ".blend")
 _TAIL = 2500
 _RENDER_SCRIPT = Path(__file__).with_name("blender_render.py")
@@ -127,6 +129,8 @@ class Workshop:
         if src.suffix.lower() not in MODEL_EXTS:
             return {"error": f"not a model file; use one of {', '.join(MODEL_EXTS)}"}
         views = views or ["front", "three_quarter", "side", "back"]
+        if views == ["all"]:
+            views = list(ALL_VIEWS)
         bad = [v for v in views if v not in VIEWS]
         if bad:
             return {"error": f"unknown view(s) {bad}; choose from {VIEWS}"}
@@ -150,16 +154,19 @@ class Workshop:
             silo.write_bytes(f"{dest}/{v}.png", png.read_bytes())
             saved.append(f"renders/{name}/{v}.png")
             tiles.append(Image.open(png).convert("RGB"))
-        sheet = Image.new("RGB", (size * len(tiles), size), (20, 20, 24))
+        cols = min(5, len(tiles))
+        rows = (len(tiles) + cols - 1) // cols
+        sheet = Image.new("RGB", (size * cols, size * rows), (20, 20, 24))
         for i, t in enumerate(tiles):
-            sheet.paste(t, (i * size, 0))
+            sheet.paste(t, ((i % cols) * size, (i // cols) * size))
         buf = io.BytesIO()
         sheet.save(buf, "PNG")
         silo.write_bytes(f"{dest}/viewport.png", buf.getvalue())
         silo.write(f"{dest}/stats.json", json.dumps(stats, indent=1))
         silo.log("viewport_rendered", model=model, views=views, triangles=stats.get("triangles"),
                  seconds=round(time.monotonic() - t0, 2))
-        summary = (f"{model}: views {', '.join(views)} (left to right). triangles={stats['triangles']}, "
+        summary = (f"{model}: views {', '.join(views)} (left to right, top to bottom). "
+                   f"triangles={stats['triangles']}, loose_parts={stats.get('loose_parts')}, "
                    f"dimensions={stats['dimensions']}, non_manifold_edges={stats['non_manifold_edges']}, "
                    f"objects={stats['objects']}, materials={stats['materials']}. "
                    f"Saved {', '.join(saved)} and renders/{name}/viewport.png.")
@@ -191,10 +198,11 @@ class Workshop:
                  lambda script, timeout=None: self.run_blender_script(silo, script, timeout)),
             Tool("render_viewport",
                  "Render a model in artifacts/ (.glb/.gltf/.obj/.ply/.stl/.fbx/.blend) in Blender from several "
-                 "angles and look at it, with geometry stats for QA: triangle count, dimensions in Blender "
-                 "units, non-manifold edges, materials.",
+                 "angles and look at it, with geometry stats for QA: triangle count, loose parts, dimensions "
+                 "in Blender units, non-manifold edges, materials. views: any of the listed directions, or "
+                 "[\"all\"] for every direction (six axes + four upper diagonals).",
                  {"properties": {"model": s,
-                                 "views": {"type": "array", "items": {"type": "string", "enum": VIEWS}},
+                                 "views": {"type": "array", "items": {"type": "string", "enum": VIEWS + ["all"]}},
                                  "size": {"type": "integer"}, "samples": {"type": "integer"}},
                   "required": ["model"]},
                  lambda model, views=None, size=384, samples=16:

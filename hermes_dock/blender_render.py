@@ -24,10 +24,19 @@ from mathutils import Vector  # noqa: E402
 VIEWS = {
     "front": Vector((0, -1, 0)),
     "back": Vector((0, 1, 0)),
-    "side": Vector((1, 0, 0)),
-    "three_quarter": Vector((0.75, -1, 0.55)),
+    "side": Vector((1, 0, 0)),          # = right
+    "right": Vector((1, 0, 0)),
+    "left": Vector((-1, 0, 0)),
     "top": Vector((0, -0.01, 1)),
+    "bottom": Vector((0, -0.01, -1)),
+    "three_quarter": Vector((0.75, -1, 0.55)),          # front-right, from above
+    "three_quarter_left": Vector((-0.75, -1, 0.55)),    # front-left, from above
+    "back_three_quarter": Vector((0.75, 1, 0.55)),      # back-right, from above
+    "back_three_quarter_left": Vector((-0.75, 1, 0.55)),
 }
+# every direction: the six axes and the four upper diagonals
+ALL_VIEWS = ["front", "back", "left", "right", "top", "bottom", "three_quarter", "three_quarter_left",
+             "back_three_quarter", "back_three_quarter_left"]
 
 
 def import_model(path):
@@ -53,7 +62,7 @@ def import_model(path):
 
 
 def stats(meshes):
-    tris, nonmanifold, mats = 0, 0, set()
+    tris, nonmanifold, loose, mats = 0, 0, 0, set()
     lo, hi = Vector((1e18,) * 3), Vector((-1e18,) * 3)
     deps = bpy.context.evaluated_depsgraph_get()
     for o in meshes:
@@ -66,6 +75,21 @@ def stats(meshes):
         # only real holes and fins count as non-manifold
         bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
         nonmanifold += sum(1 for e in bm.edges if not e.is_manifold)
+        # loose parts: connected pieces of geometry (a stray triangle shows up here)
+        seen, parts = set(), 0
+        for v in bm.verts:
+            if v.index in seen:
+                continue
+            parts += 1
+            stack = [v]
+            seen.add(v.index)
+            while stack:
+                for e in stack.pop().link_edges:
+                    for w in e.verts:
+                        if w.index not in seen:
+                            seen.add(w.index)
+                            stack.append(w)
+        loose += parts
         bm.free()
         for v in me.vertices:
             w = o.matrix_world @ v.co
@@ -73,7 +97,7 @@ def stats(meshes):
             hi = Vector(map(max, hi, w))
         mats |= {m.name for m in o.data.materials if m}
         o.evaluated_get(deps).to_mesh_clear()
-    return {"objects": len(meshes), "triangles": tris, "non_manifold_edges": nonmanifold,
+    return {"objects": len(meshes), "triangles": tris, "non_manifold_edges": nonmanifold, "loose_parts": loose,
             "dimensions": [round(x, 4) for x in (hi - lo)], "bounds_min": [round(x, 4) for x in lo],
             "bounds_max": [round(x, 4) for x in hi], "materials": sorted(mats)}, lo, hi
 
@@ -81,6 +105,8 @@ def stats(meshes):
 def main():
     model, out_dir, views, size, samples = sys.argv[1], sys.argv[2], sys.argv[3].split(","), int(sys.argv[4]), \
         int(sys.argv[5])
+    if views == ["all"]:
+        views = ALL_VIEWS
     os.makedirs(out_dir, exist_ok=True)
     bpy.ops.wm.read_factory_settings(use_empty=True)
     import_model(model)
